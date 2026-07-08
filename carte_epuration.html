@@ -231,7 +231,11 @@
         // ==========================================
         // 1. CONFIGURATION DE LA SOURCE DE DONNÉES
         // ==========================================
-        const PMTILES_URL = "./data/steu.pmtiles";
+        /* Adresse pmtiles site public */
+        const PMTILES_URL = "https://martiblc.github.io/carte_epuration/data/steu.pmtiles";
+        
+        /* Adresse test local : const PMTILES_URL = "./data/steu.pmtiles"; */
+        
 
         const isMobile = window.innerWidth <= 480;
         const map = new maplibregl.Map({
