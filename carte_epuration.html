@@ -240,11 +240,11 @@
         const isMobile = window.innerWidth <= 480;
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+            style: 'https://tiles.openfreemap.org/styles/positron',
             center: isMobile ? [2.2, 46.5] : [1.8, 46.5],
             zoom: isMobile ? 4 : 4.8,
-            minZoom: 2,
-            maxZoom: 14
+            minZoom: 3,
+            maxZoom: 10
         });
 
         // Controles de zoom et de plein écran
@@ -256,27 +256,23 @@
         // ==========================================
         // 2. LOGIQUE D'AFFICHAGE DE LA CARTE (POINTS)
         // ==========================================
-        map.on('load', () => {
+map.on('load', () => {
 
-            // --- SEUILS DE ZOOM ET TRADUCTION DES TEXTES EN FRANÇAIS ---
+            // --- FILTRAGE DES TEXTES : UNIQUEMENT LES COMMUNES ---
             map.getStyle().layers.forEach(layer => {
                 if (layer.type === 'symbol') {
-                    // Action A : Masquer les écritures sous le zoom 7 pour la clarté initiale
-                    map.setLayerZoomRange(layer.id, 7, 24);
+                    // On vérifie si la couche correspond à une commune (villes, bourgs, villages)
+                    const isCommune = layer.id.includes('city') || 
+                                      layer.id.includes('town') || 
+                                      layer.id.includes('village') ||
+                                      layer.id.includes('hamlet');
 
-                    // Action B : Forcer la langue française sur les étiquettes de texte
-                    if (layer.layout && layer.layout['text-field']) {
-                        const textFieldStr = JSON.stringify(layer.layout['text-field']);
-                        // On cible uniquement les couches de texte liées à des noms géographiques (villes, pays...)
-                        if (textFieldStr.includes('"name"') || textFieldStr.includes('"name_en"')) {
-                            map.setLayoutProperty(layer.id, 'text-field', [
-                                'coalesce',
-                                ['get', 'name_fr'],  // 1. Priorité au français standard
-                                ['get', 'name:fr'],  // 2. Variante de code pour le français
-                                ['get', 'name_en'],  // 3. Fallback anglais si pas de traduction
-                                ['get', 'name']      // 4. Nom local par défaut
-                            ]);
-                        }
+                    if (isCommune) {
+                        // On garde les communes, et on leur applique ton seuil de zoom de sécurité
+                        map.setLayerZoomRange(layer.id, 7, 24);
+                    } else {
+                        // On masque TOUT le reste (le nom des pays, des régions, des routes, des rivières, etc.)
+                        map.setLayoutProperty(layer.id, 'visibility', 'none');
                     }
                 }
             });
