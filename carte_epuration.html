@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stations d'eaux usées - Conformité</title>
+
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/pmtiles@2.11.0/dist/index.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 15px;
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* Conteneur principal de la carte */
+        .map-container-wrapper {
+            flex-grow: 1;
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            min-height: 600px;
+            border: 1px solid #e0e0e0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .maplibregl-popup-content {
+            padding: 8px 8px !important;
+            /* Épaisseur haut/bas (8px) et gauche/droite (10px) */
+            border-radius: 4px !important;
+        
+        }
+
+        /* Barre de recherche */
+        .search-overlay {
+            position: absolute;
+            top: 2%;
+            left: 2%;
+            z-index: 10;
+            width: 280px;
+        }
+
+        .ts-control {
+            padding: 4px 8px !important;
+            min-height: 32px !important;
+            font-size: 13px !important;
+            border: 1px solid #ccc !important;
+            border-radius: 6px !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Menu déroulant Outre-mer */
+        .dom-buttons {
+            position: absolute;
+            top: 2%;
+            right: 2%;
+            z-index: 10;
+        }
+
+        #dom-select {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Fenêtre de la légende - Pastilles rondes */
+        .legend-wrapper {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            max-width: 90%;
+        }
+
+        .legend-title {
+            font-size: 12px;
+            font-weight: bold;
+            color: #222;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .legend-binned {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .legend-bin {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bin-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid #ccc;
+        }
+
+        .bin-label {
+            font-size: 11px;
+            color: #444;
+            white-space: nowrap;
+        }
+
+        /* Zone de mentions sous la carte */
+        .map-notes {
+            max-width: 800px;
+            margin: 5px auto 0 auto;
+            width: 100%;
+            font-size: 12px;
+            color: #666666;
+            line-height: 1.5;
+        }
+
+        /* Ajustements responsive pour les smartphones */
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+
+            .search-overlay {
+                width: 50%;
+            }
+
+            .legend-wrapper {
+                bottom: 50px;
+                left: 2%;
+                transform: none;
+                max-width: 95%;
+            }
+
+            .map-container-wrapper {
+                min-height: 500px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="map-container-wrapper" id="map-container-parent">
+
+        <div class="search-overlay">
+            <select id="search-input" placeholder="Chercher une commune..."></select>
+        </div>
+
+        <div class="dom-buttons">
+            <select id="dom-select" onchange="
+                const destinations = {
+                    'metro': {center: [1.8, 46.5], zoom: 4.8},
+                    'martinique': {center: [-61.0, 14.6], zoom: 9},
+                    'guadeloupe': {center: [-61.5, 16.2], zoom: 9},
+                    'guyane': {center: [-53.0, 3.9], zoom: 7},
+                    'reunion': {center: [55.5, -21.1], zoom: 9},
+                    'mayotte': {center: [45.1, -12.8], zoom: 10}
+                };
+                const dest = destinations[this.value];
+                if (dest) map.flyTo(dest);
+                this.value = '';
+            ">
+                <option value="">Outre-mer</option>
+                <option value="martinique">Martinique</option>
+                <option value="guadeloupe">Guadeloupe</option>
+                <option value="guyane">Guyane</option>
+                <option value="reunion">La Réunion</option>
+                <option value="mayotte">Mayotte</option>
+                <option value="metro">France hexa.</option>
+            </select>
+        </div>
+
+        <div class="legend-wrapper">
+            <div class="legend-title">Conformité de la station</div>
+            <div class="legend-binned">
+                <div class="legend-bin">
+                    <div class="bin-color" style="background: #28a745;"></div>
+                    <span class="bin-label">Conforme</span>
+                </div>
+                <div class="legend-bin">
+                    <div class="bin-color" style="background: #dc3545;"></div>
+                    <span class="bin-label">Non conforme</span>
+                </div>
+                <div class="legend-bin">
+                    <div class="bin-color" style="background: #6c757d;"></div>
+                    <span class="bin-label">N.C.</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="map"></div>
+    </div>
+
+    <div class="map-notes">
+        <p>Réalisation : Marti Blancho | Source : ministère de la Transition écologique</p>
+    </div>
+
+    <script>
+        // Initialisation de PMTiles
+        let protocol = new pmtiles.Protocol();
+        maplibregl.addProtocol("pmtiles", protocol.tile);
+
+        // ==========================================
+        // 1. CONFIGURATION DE LA SOURCE DE DONNÉES
+        // ==========================================
+        const PMTILES_URL = "./data/steu.pmtiles";
+
+        const isMobile = window.innerWidth <= 480;
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+            center: isMobile ? [2.2, 46.5] : [1.8, 46.5],
+            zoom: isMobile ? 4 : 4.8,
+            minZoom: 2,
+            maxZoom: 14
+        });
+
+        // Controles de zoom et de plein écran
+        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+        map.addControl(new maplibregl.FullscreenControl({
+            container: document.querySelector('#map-container-parent')
+        }), 'bottom-left');
+
+        // ==========================================
+        // 2. LOGIQUE D'AFFICHAGE DE LA CARTE (POINTS)
+        // ==========================================
+        map.on('load', () => {
+
+            // --- SEUILS DE ZOOM ET TRADUCTION DES TEXTES EN FRANÇAIS ---
+            map.getStyle().layers.forEach(layer => {
+                if (layer.type === 'symbol') {
+                    // Action A : Masquer les écritures sous le zoom 7 pour la clarté initiale
+                    map.setLayerZoomRange(layer.id, 7, 24);
+
+                    // Action B : Forcer la langue française sur les étiquettes de texte
+                    if (layer.layout && layer.layout['text-field']) {
+                        const textFieldStr = JSON.stringify(layer.layout['text-field']);
+                        // On cible uniquement les couches de texte liées à des noms géographiques (villes, pays...)
+                        if (textFieldStr.includes('"name"') || textFieldStr.includes('"name_en"')) {
+                            map.setLayoutProperty(layer.id, 'text-field', [
+                                'coalesce',
+                                ['get', 'name_fr'],  // 1. Priorité au français standard
+                                ['get', 'name:fr'],  // 2. Variante de code pour le français
+                                ['get', 'name_en'],  // 3. Fallback anglais si pas de traduction
+                                ['get', 'name']      // 4. Nom local par défaut
+                            ]);
+                        }
+                    }
+                }
+            });
+            // -----------------------------------------------------------
+
+            map.addSource('stations-source', {
+                type: 'vector',
+                url: `pmtiles://${PMTILES_URL}`
+            });
+
+            map.addLayer({
+                'id': 'stations-layer',
+                'type': 'circle',
+                'source': 'stations-source',
+                'source-layer': 'carte_steu',
+                'paint': {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        3, 2,  // Au zoom 3 (France entière), le point fait 2 pixels de rayon
+                        10, 5,   // Au zoom 10 (vue de la région/département), il passe à 5 pixels
+                        14, 8    // Au zoom 14 (vue très proche de la commune), il monte à 8 pixels
+                    ],
+                    'circle-color': [
+                        'match',
+                        ['get', 'conformite_globale_steu_reglementaire_performances'],
+                        'Oui', '#28a745',
+                        'Non', '#dc3545',
+                        '#6c757d'
+                    ],
+                    'circle-stroke-width': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        3, 0.3,  // Bordure très fine quand on est dézoomé
+                        10, 1    // Bordure normale quand on est zoomé
+                    ],
+                    'circle-stroke-color': '#ffffff',
+                    'circle-opacity': 0.9
+                }
+            });
+
+            map.addLayer({
+                'id': 'stations-highlight-layer',
+                'type': 'circle',
+                'source': 'stations-source',
+                'source-layer': 'carte_steu',
+                'paint': {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['zoom'],
+                        3, 4,
+                        10, 9,
+                        14, 13
+                    ],
+                    'circle-color': 'transparent',
+                    'circle-stroke-color': '#000000',
+                    'circle-stroke-width': 2.5,
+                    'circle-opacity': 0.9
+                },
+                // Syntaxe classique sécurisée : n'affiche rien au démarrage
+                'filter': ['==', 'nom_du_steu', '']
+            });
+
+            // Préparation de l'infobulle (Popup)
+            const popup = new maplibregl.Popup({
+                closeButton: false,
+                closeOnClick: false,
+                offset: 10
+            });
+
+            // ==========================================
+            // 3. LOGIQUE D'INTERACTION AU SURVOL (POPUP)
+            // ==========================================
+            map.on('mousemove', 'stations-layer', (e) => {
+                if (e.features.length === 0) return;
+
+                const feature = e.features[0];
+                const props = feature.properties;
+                map.getCanvas().style.cursor = 'pointer';
+
+                // On crée des variables courtes pour simplifier le code HTML en dessous
+                const perf = props.conformite_globale_steu_reglementaire_performances;
+                const equip = props.conformite_reglementaire_equipement_steu;
+
+                const html = `
+                    <div style="font-family: sans-serif; font-size: 12px; line-height: 1.4; padding: 0px; min-width: 200px;">
+                        <!-- Titre : Commune -->
+                        <strong style="font-size: 13px; color: #111;">${props.commune_implantation || 'Commune inconnue'}</strong><br>
+                        
+                        <!-- Nom de la station -->
+                        <span style="color: #666; font-size: 9px; font-style: italic;">Station : ${props.nom_du_steu || 'Sans nom'}</span>
+                        
+                        <hr style="border: 0; border-top: 1px solid #eeeeee; margin: 8px 0;">
+                        
+                        <!-- Conformité Performances -->
+                        Conformité performances : <strong style="color: ${perf === 'Oui' ? '#28a745' : perf === 'Non' ? '#dc3545' : '#6c757d'}">
+                            ${perf || 'Inconnue'}
+                        </strong><br>
+                        
+                        <!-- Conformité Équipement -->
+                        Conformité équipement : <strong style="color: ${equip === 'Oui' ? '#28a745' : equip === 'Non' ? '#dc3545' : '#6c757d'}">
+                            ${equip || 'Inconnue'}
+                        </strong>
+                    </div>
+                `;
+
+                popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+            });
+
+            map.on('mouseleave', 'stations-layer', () => {
+                map.getCanvas().style.cursor = '';
+                popup.remove();
+            });
+            map.on('click', 'stations-layer', (e) => {
+                if (e.features.length === 0) return;
+
+                const feature = e.features[0];
+                // Sécurité : si le nom est manquant, on applique une chaîne vide pour éviter le bug
+                const nomStation = feature.properties.nom_du_steu || '';
+
+                // Application du filtre sécurisé
+                map.setFilter('stations-highlight-layer', ['==', 'nom_du_steu', nomStation]);
+            });
+
+            // Effacer la surbrillance si on clique n'importe où sur le fond de carte
+            map.on('click', (e) => {
+                const features = map.queryRenderedFeatures(e.point, { layers: ['stations-layer'] });
+
+                if (features.length === 0) {
+                    map.setFilter('stations-highlight-layer', ['==', 'nom_du_steu', '']);
+                }
+            });
+        });
+
+        // ==========================================
+        // 4. MOTEUR DE RECHERCHE COMMUNE (API ADRESSE)
+        // ==========================================
+        const tsInstance = new TomSelect("#search-input", {
+            valueField: 'coordinates',
+            labelField: 'label',
+            searchField: 'label',
+            placeholder: "Chercher une commune...",
+            maxItems: 1,
+            shouldLoad: function (query) {
+                return query.length >= 3;
+            },
+            load: function (query, callback) {
+                const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(query)}&type=municipality&limit=6`;
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(json => {
+                        const options = json.features.map(feature => {
+                            const deptCode = feature.properties.context.split(',')[0].trim();
+                            return {
+                                coordinates: JSON.stringify(feature.geometry.coordinates),
+                                label: `${feature.properties.name} (${deptCode})`
+                            };
+                        });
+                        callback(options);
+                    })
+                    .catch(() => {
+                        callback();
+                    });
+            },
+            onChange: function (value) {
+                if (!value) return;
+
+                const coords = JSON.parse(value);
+
+                map.flyTo({
+                    center: coords,
+                    zoom: 12,
+                    speed: 1.5,
+                    essential: true
+                });
+
+                this.clear(true);
+            }
+        });
+    </script>
+
+</body>
+
+</html>
