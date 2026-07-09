@@ -46,7 +46,7 @@
             padding: 8px 8px !important;
             /* Épaisseur haut/bas (8px) et gauche/droite (10px) */
             border-radius: 4px !important;
-        
+
         }
 
         /* Barre de recherche */
@@ -220,20 +220,25 @@
     </div>
 
     <div class="map-notes">
-<details style="background: #f8f9fa; padding: 10px 12px; border-radius: 4px; margin-bottom: 10px; border-left: 3px solid #6c757d;">
-            
+        <details
+            style="background: #f8f9fa; padding: 10px 12px; border-radius: 4px; margin-bottom: 10px; border-left: 3px solid #6c757d; box-sizing: border-box; width: 100%;">
+
             <summary style="font-weight: bold; color: #333; cursor: pointer; user-select: none; outline: none;">
                 Le détail des critères de conformité...
             </summary>
-            
+
             <div style="margin-top: 8px; font-size: 12px; line-height: 1.5; color: #444;">
-            • <strong>Conformité équipement :</strong> l'installation est-elle jugée suffisante en l’état pour traiter les effluents reçus ?<br>
-            • <strong>Conformité performances :</strong> la station a-t-elle respecté sur l’année l’ensemble des prescriptions environnementales imposées ?
-</div>
+                • <strong>Conformité équipement :</strong> l'installation est-elle jugée suffisante en l’état pour
+                traiter les effluents reçus ?<br>
+                • <strong>Conformité performances :</strong> la station a-t-elle respecté sur l’année l’ensemble des
+                prescriptions environnementales imposées ?
             </div>
 
         </details>
-        <p style="margin: 0; font-size: 11px; color: #6c757d">Réalisation : Marti Blancho | Sources : ministère de la Transition écologique, © OpenMapTiles Data from OpenStreetMap </p>
+        <p style="margin: 12px 0 0 0; font-size: 11px; color: #6c757d; width: 100%;">
+            Réalisation : Marti Blancho | Sources : ministère de la Transition écologique, © OpenMapTiles Data from
+            OpenStreetMap
+        </p>
     </div>
 
     <script>
@@ -246,9 +251,9 @@
         // ==========================================
         /* Adresse pmtiles site public */
         const PMTILES_URL = "https://martiblc.github.io/carte_epuration/data/steu.pmtiles";
-        
+
         /* Adresse test local : const PMTILES_URL = "./data/steu.pmtiles"; */
-        
+
 
         const isMobile = window.innerWidth <= 480;
         const map = new maplibregl.Map({
@@ -270,16 +275,16 @@
         // ==========================================
         // 2. LOGIQUE D'AFFICHAGE DE LA CARTE (POINTS)
         // ==========================================
-map.on('load', () => {
+        map.on('load', () => {
 
             // --- FILTRAGE DES TEXTES : UNIQUEMENT LES COMMUNES ---
             map.getStyle().layers.forEach(layer => {
                 if (layer.type === 'symbol') {
                     // On vérifie si la couche correspond à une commune (villes, bourgs, villages)
-                    const isCommune = layer.id.includes('city') || 
-                                      layer.id.includes('town') || 
-                                      layer.id.includes('village') ||
-                                      layer.id.includes('hamlet');
+                    const isCommune = layer.id.includes('city') ||
+                        layer.id.includes('town') ||
+                        layer.id.includes('village') ||
+                        layer.id.includes('hamlet');
 
                     if (isCommune) {
                         // On garde les communes, et on leur applique ton seuil de zoom de sécurité
