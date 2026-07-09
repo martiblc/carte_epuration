@@ -220,7 +220,7 @@
     </div>
 
     <div class="map-notes">
-        <p>Réalisation : Marti Blancho | Source : ministère de la Transition écologique</p>
+        <p>Réalisation : Marti Blancho | Sources : ministère de la Transition écologique, © OpenMapTiles Data from OpenStreetMap </p>
     </div>
 
     <script>
@@ -244,7 +244,8 @@
             center: isMobile ? [2.2, 46.5] : [1.8, 46.5],
             zoom: isMobile ? 4 : 4.8,
             minZoom: 3,
-            maxZoom: 10
+            maxZoom: 10,
+            attributionControl: false
         });
 
         // Controles de zoom et de plein écran
